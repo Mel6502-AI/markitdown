@@ -43,6 +43,7 @@ from .converters import (
 )
 
 from ._base_converter import DocumentConverter, DocumentConverterResult
+from .converters._youtube_ytdlp import fetch_youtube_markdown, is_youtube_url
 
 from ._exceptions import (
     FileConversionException,
@@ -472,6 +473,11 @@ class MarkItDown:
             )
         # HTTP/HTTPS URIs
         elif uri.startswith("http:") or uri.startswith("https:"):
+            # YouTube is served through yt-dlp (metadata + captions) rather than a
+            # plain page fetch: the watch page is bot-gated and rate-limited, so
+            # requests.get() would 429 before any converter runs. See _youtube_ytdlp.
+            if is_youtube_url(uri):
+                return fetch_youtube_markdown(uri)
             response = self._requests_session.get(uri, stream=True)
             response.raise_for_status()
             return self.convert_response(
