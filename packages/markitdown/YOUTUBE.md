@@ -19,8 +19,25 @@ markitdown "https://youtu.be/VIDEOID" -o out.md
 - **`yt-dlp` on PATH.** Install with `pipx install yt-dlp` or `brew install yt-dlp`.
 - **Browser login.** YouTube requires a signed-in session to pass its bot check.
   By default markitdown reads cookies from Chrome (`--cookies-from-browser chrome`),
-  which may trigger a one-time OS keychain prompt. To use an exported cookie file
-  instead, set `MARKITDOWN_YT_COOKIES` (see below).
+  which triggers a macOS "Chrome Safe Storage" keychain prompt on each run.
+
+### Avoiding the keychain prompt (recommended)
+
+Export the cookies once to a file and point `MARKITDOWN_YT_COOKIES` at it; markitdown
+then never touches the keychain:
+
+```bash
+mkdir -p ~/.config
+yt-dlp --cookies-from-browser chrome --cookies ~/.config/yt-cookies.txt \
+       --skip-download "https://youtu.be/dQw4w9WgXcQ" >/dev/null 2>&1
+chmod 600 ~/.config/yt-cookies.txt          # holds your YouTube session
+export MARKITDOWN_YT_COOKIES="$HOME/.config/yt-cookies.txt"   # add to ~/.zshrc
+```
+
+The exported cookies eventually expire (YouTube's last months). When conversion starts
+failing the bot check again, re-run the export command above to refresh the file.
+Alternatively, just click **Always Allow** on the keychain prompt instead of using a
+file — simpler, but it can reappear after a Chrome update.
 
 ## Configuration (environment variables)
 
