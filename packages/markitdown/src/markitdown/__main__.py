@@ -2,13 +2,16 @@
 #
 # SPDX-License-Identifier: MIT
 import argparse
+import re
 import sys
 import codecs
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from textwrap import dedent
+from urllib.parse import urlparse
 from importlib.metadata import entry_points
 from .__about__ import __version__
 from ._markitdown import MarkItDown, StreamInfo, DocumentConverterResult
+from .converters._youtube_ytdlp import is_youtube_url
 
 
 def main():
@@ -258,11 +261,31 @@ def main():
     _handle_output(args, result)
 
 
+def _youtube_default_output(args, result: DocumentConverterResult) -> Optional[str]:
+    """Default save path for YouTube URLs when no -o is given and stdout is a TTY.
+
+    Mirrors the old yt2md behavior: `markitdown <youtube-url>` in a terminal drops a
+    `<slug>.md` in the current directory. When stdout is piped, returns None so the
+    markdown still streams to stdout (keeps `markitdown url | ...` working).
+    """
+    if args.output or args.filename is None or not is_youtube_url(args.filename):
+        return None
+    if not sys.stdout.isatty():
+        return None
+    slug = re.sub(r"[^a-z0-9]+", "-", (result.title or "").lower()).strip("-")
+    if not slug:
+        slug = (urlparse(args.filename).path.strip("/").split("/")[-1]) or "youtube"
+    return f"{slug[:80]}.md"
+
+
 def _handle_output(args, result: DocumentConverterResult):
     """Handle output to stdout or file"""
-    if args.output:
-        with open(args.output, "w", encoding="utf-8") as f:
+    output = args.output or _youtube_default_output(args, result)
+    if output:
+        with open(output, "w", encoding="utf-8") as f:
             f.write(result.markdown)
+        if not args.output:  # auto-chosen path; tell the user where it went
+            print(f"Saved to {output}", file=sys.stderr)
     else:
         # Handle stdout encoding errors more gracefully
         print(
